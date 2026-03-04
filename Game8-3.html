@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>8-3: Hái Hoa Tặng Nàng</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pattaya&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #ff6b81; --secondary: #feca57; --bg: #fff5f6; }
+        body { margin: 0; font-family: 'Quicksand', sans-serif; background: var(--bg); overflow: hidden; touch-action: none; }
+        
+        #setup-screen {
+            position: fixed; inset: 0; background: white; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto;
+        }
+        .card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(255,107,129,0.15); width: 100%; max-width: 400px; text-align: center; border: 2px solid #fff0f2; }
+        h1 { color: var(--primary); font-family: 'Pattaya', sans-serif; margin-bottom: 15px; font-size: 28px; }
+        input, textarea { width: 90%; padding: 12px; margin: 8px 0; border: 2px solid #ffeef0; border-radius: 12px; font-family: inherit; outline: none; }
+        input:focus { border-color: var(--primary); }
+        .upload-row { display: flex; justify-content: space-around; margin: 15px 0; }
+        .upload-box { width: 90px; height: 90px; border: 2px dashed #ffb3c1; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; cursor: pointer; background: #fffafb; }
+        .upload-box img { width: 100%; height: 100%; object-fit: cover; }
+        .upload-box span { font-size: 11px; color: var(--primary); font-weight: bold; }
+        button#start-btn { background: var(--primary); color: white; border: none; padding: 16px 50px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 15px; box-shadow: 0 4px 15px rgba(255,107,129,0.3); }
+        
+        #result-screen {
+            position: fixed; inset: 0; background: rgba(255, 245, 246, 0.98); z-index: 200;
+            display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center;
+        }
+        .result-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; }
+        .avatar { width: 110px; height: 110px; border-radius: 50%; border: 5px solid white; box-shadow: 0 8px 20px rgba(255,107,129,0.2); }
+        .rose-count { font-size: 35px; color: #ff4757; font-weight: 800; font-family: 'Pattaya', sans-serif; }
+        .wish-box { background: white; border-radius: 20px; padding: 30px; border: 2px solid #ffcad4; box-shadow: inset 0 0 20px rgba(255,182,193,0.1); max-width: 450px; font-style: italic; color: #555; position: relative; margin-top: 10px; }
+        .wish-box::before { content: '“'; position: absolute; top: 5px; left: 15px; font-size: 50px; color: #ffcad4; }
+        .action-btns { margin-top: 30px; display: flex; gap: 15px; }
+        .btn { padding: 12px 25px; border-radius: 25px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    </style>
+</head>
+<body>
+
+<div id="setup-screen">
+    <div class="card">
+        <h1>🌹 Game 8-3 Cute 🌹</h1>
+        <p style="font-size: 13px; color: #888;">Tạo trò chơi dành riêng cho người ấy</p>
+        <input type="text" id="senderName" placeholder="Tên bạn (Người tặng)...">
+        <input type="text" id="receiverName" placeholder="Tên cô ấy (Người nhận)...">
+        
+        <div class="upload-row">
+            <div class="upload-box" onclick="document.getElementById('f1').click()">
+                <input type="file" id="f1" hidden accept="image/*" onchange="previewImg(this, 'p1')">
+                <img id="p1" style="display:none">
+                <span id="t1">Ảnh Bạn</span>
+            </div>
+            <div class="upload-box" onclick="document.getElementById('f2').click()">
+                <input type="file" id="f2" hidden accept="image/*" onchange="previewImg(this, 'p2')">
+                <img id="p2" style="display:none">
+                <span id="t2">Ảnh Cô Ấy</span>
+            </div>
+        </div>
+
+        <textarea id="wishText" rows="3" placeholder="Nhập lời nhắn gửi yêu thương..."></textarea>
+        <button id="start-btn">BẮT ĐẦU CHƠI</button>
+        <p style="font-size: 11px; margin-top: 10px; color: #aaa;">HD: Click để Nhảy, Giữ để Thu nhỏ</p>
+    </div>
+</div>
+
+<div id="result-screen">
+    <div class="result-header">
+        <img id="res-sender" class="avatar">
+        <div class="rose-count">🌹 <span id="finalScore">0</span></div>
+        <img id="res-receiver" class="avatar">
+    </div>
+    <h2 id="res-announcement" style="color: var(--primary); font-family: 'Pattaya';"></h2>
+    <div class="wish-box" id="res-wish"></div>
+    <div class="action-btns">
+        <button class="btn" style="background: #eee" onclick="location.reload()">Chơi lại</button>
+        <button class="btn" style="background: var(--primary); color: white" onclick="alert('Đã chụp ảnh màn hình!')">Lưu Ảnh</button>
+    </div>
+</div>
+
+<script>
+    let senderImgBase64 = "";
+    let receiverImgBase64 = "";
+    let score = 0;
+
+    function previewImg(input, imgId) {
+        if (input.files && input.files[0]) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(imgId).src = e.target.result;
+                document.getElementById(imgId).style.display = "block";
+                document.getElementById('t' + imgId.charAt(1)).style.display = "none";
+                if(imgId === 'p1') senderImgBase64 = e.target.result;
+                if(imgId === 'p2') receiverImgBase64 = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    const config = {
+        type: Phaser.AUTO,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: '#fff5f6',
+        physics: { default: 'arcade', arcade: { gravity: { y: 1500 }, debug: false } },
+        scene: { preload: preload, create: create, update: update }
+    };
+
+    let game;
+    document.getElementById('start-btn').onclick = () => {
+        if(!senderImgBase64) return alert("Vui lòng tải ảnh của bạn lên!");
+        document.getElementById('setup-screen').style.display = 'none';
+        game = new Phaser.Game(config);
+    };
+
+    function preload() {
+        this.load.image('rose', 'https://cdn-icons-png.flaticon.com/512/3405/3405900.png');
+    }
+
+    let player, ground, obstacles, flowers, scoreText;
+    let gameSpeed = -400;
+
+    function create() {
+        const scene = this;
+        
+        // Tạo Texture nhân vật từ ảnh đã upload
+        const pSize = 120;
+        const playerCanvas = document.createElement('canvas');
+        playerCanvas.width = pSize; playerCanvas.height = pSize;
+        const ctx = playerCanvas.getContext('2d');
+        ctx.beginPath(); ctx.arc(pSize/2, pSize/2, pSize/2, 0, Math.PI * 2); ctx.clip();
+        let img = new Image();
+        img.src = senderImgBase64;
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, pSize, pSize);
+            scene.textures.addCanvas('playerTex', playerCanvas);
+            player.setTexture('playerTex');
+        };
+
+        player = this.physics.add.sprite(150, config.height - 150, null);
+        player.setCircle(pSize/2);
+        player.setCollideWorldBounds(true);
+        player.setDisplaySize(80, 80);
+
+        ground = this.add.rectangle(0, config.height - 40, config.width * 2, 80, 0xffb6c1).setOrigin(0);
+        this.physics.add.existing(ground, true);
+        this.physics.add.collider(player, ground);
+
+        obstacles = this.physics.add.group();
+        flowers = this.physics.add.group();
+
+        this.time.addEvent({ delay: 1800, callback: spawnObstacle, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 1200, callback: spawnFlower, callbackScope: this, loop: true });
+
+        this.physics.add.overlap(player, obstacles, gameOver, null, this);
+        this.physics.add.overlap(player, flowers, collectFlower, null, this);
+
+        scoreText = this.add.text(20, 20, '🌹 Hoa: 0', { fontSize: '28px', fill: '#ff6b81', fontWeight: 'bold', fontFamily: 'Quicksand' });
+    }
+
+    function spawnObstacle() {
+        let x = config.width + 100;
+        let isHigh = Math.random() > 0.5; // 50% là vật cản trên cao (chim/máy bay)
+        let y = isHigh ? config.height - 160 : config.height - 80;
+        
+        let color = isHigh ? 0x74b9ff : 0xfa8072; // Xanh cho bay, Đỏ cho đất
+        let obs = obstacles.create(x, y, null);
+        
+        if(isHigh) {
+            obs.setDisplaySize(60, 40); // Hình dáng giống con chim
+        } else {
+            obs.setDisplaySize(50, 60); // Hình dáng giống thùng gỗ
+        }
+        
+        obs.setTint(color);
+        obs.body.setAllowGravity(false);
+        obs.setVelocityX(gameSpeed - (score * 5)); // Tốc độ nhanh dần theo điểm
+    }
+
+    function spawnFlower() {
+        let flower = flowers.create(config.width + 100, config.height - 100 - Math.random() * 200, 'rose');
+        flower.setDisplaySize(40, 40);
+        flower.body.setAllowGravity(false);
+        flower.setVelocityX(gameSpeed);
+    }
+
+    function collectFlower(player, flower) {
+        flower.destroy();
+        score++;
+        scoreText.setText('🌹 Hoa: ' + score);
+    }
+
+    function update() {
+        const pointer = this.input.activePointer;
+
+        if (pointer.isDown) {
+            // Nếu nhấn ở nửa dưới màn hình -> CÚI XUỐNG (Thu nhỏ)
+            if (pointer.y > config.height / 2) {
+                player.setDisplaySize(80, 40); // Thu hẹp chiều cao
+                player.setY(config.height - 60);
+            } 
+            // Nếu nhấn ở nửa trên màn hình -> NHẢY
+            else if (player.body.onFloor()) {
+                player.setVelocityY(-650);
+                player.setDisplaySize(80, 80); // Trở lại bình thường khi nhảy
+            }
+        } else {
+            // Trở lại kích thước bình thường khi không nhấn
+            player.setDisplaySize(80, 80);
+        }
+    }
+
+    function gameOver() {
+        this.physics.pause();
+        player.setTint(0xff0000);
+        setTimeout(() => {
+            document.getElementById('result-screen').style.display = 'flex';
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('res-sender').src = senderImgBase64;
+            document.getElementById('res-receiver').src = receiverImgBase64 || senderImgBase64;
+            document.getElementById('res-announcement').innerText = `${document.getElementById('senderName').value || 'Anh'} đã hái được ${score} đóa hồng tặng ${document.getElementById('receiverName').value || 'Em'}`;
+            document.getElementById('res-wish').innerText = document.getElementById('wishText').value || "Chúc em một ngày 8/3 thật xinh đẹp và hạnh phúc nhé!";
+            game.destroy(true);
+        }, 500);
+    }
+</script>
+
+</body>
+</html>
